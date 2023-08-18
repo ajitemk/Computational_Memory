@@ -469,7 +469,124 @@ The process of converting a virtual address to a physical address is called Addr
  https://www.csl.mtu.edu/cs4411.ck/common/08-Address-Translation.pdf
  https://www.youtube.com/watch?v=0NeRAAPIL4Q
  
+Alignment :-
+
+ In C programming, you can allocate memory dynamically using functions like malloc(), calloc(), and realloc().
+ These functions return a pointer to a block of memory that you can use to store data. However, the memory that is returned may not be      
+aligned  in a way that is suitable for all types of data.
+
+For example, some processors require that 32-bit integers be aligned on a 4-byte boundary. This means that the memory address where the integer is stored must be a multiple of 4. If the integer is not aligned properly, the processor may have to perform extra work to access it, which can slow down the program. 
  
+To avoid this problem, POSIX (a standard for operating systems) requires that the memory returned by malloc(), calloc(), and realloc() be properly aligned for use with any of the standard C types. On Linux, this means that the memory is aligned along at least an 8-byte boundary on 32-bit systems and at least a 16-byte boundary on 64-bit systems.
+
+However, sometimes a programmer may need to allocate memory that is aligned along a larger boundary, such as a page. In this case, they can use the posix_memalign() function provided by POSIX 1003.1d. This function allows the programmer to specify the alignment of the memory they want to allocate. The function allocates size bytes of dynamic memory, ensuring it is aligned along a memory address that is a multiple of alignment. The parameter alignment must be a power of 2 and a multiple of the size of a void pointer.
+
  
- 
- 
+posix_memalign() is a function provided by POSIX 1003.1d that allows a programmer to allocate memory that is aligned along a specific boundary. The function takes three arguments:
+
+int posix_memalign (void **memptr,size_t alignment,size_t size);
+
+void **memptr =  A pointer to a pointer that will receive the address of the allocated memory.
+size_t alignment = The alignment of the memory, specified as a power of 2 and a multiple of the size of a void pointer.
+size_t size = The size of the memory to allocate, in bytes.
+
+If the function call fails, no memory is allocated, the pointer pointed to by the first argument is undefined, and the function returns an error code. The possible error codes are:
+
+- EINVAL: The parameter alignment is not a power of 2 or is not a multiple of the size of a void pointer.
+- ENOMEM: There is insufficient memory available to satisfy the requested allocation.
+
+The memory obtained via posix_memalign() should be freed using the free() function.
+
+eg :
+
+char *buf;
+int ret;
+/* allocate 1 KB along a 256-byte boundary */
+ret = posix_memalign (&buf, 256, 1024);
+if (ret) {
+fprintf (stderr, "posix_memalign: %s\n",
+strerror (ret));
+return −1;
+}
+/* use 'buf'... */
+free (buf);
+
+Managing the Data Segment :
+
+Managing the Data Segment refers to the process of allocating and deallocating memory in the data segment of a process's virtual address space. 
+The data segment, also known as the heap, is a segment of memory that contains a process's dynamic memory.
+ This segment is writable and can grow or shrink in size.
+ Unix systems provided interfaces for directly managing the data segment, such as the brk() and sbrk() functions. These functions were used to allocate and deallocate memory in the data segment. However, most programs have no direct use for these interfaces because malloc() and other allocation schemes are easier to use and more powerful.
+
+Anonymous Memory Mappings :
+
+Anonymous memory mappings are a way to allocate memory in a process's virtual address space without using the heap.
+Anonymous memory mappings are created using the mmap() system call, which maps a region of memory into the process's address space.
+The memory region is not backed by any file, hence the name "anonymous".
+
+Anonymous memory mappings are useful for several reasons. First, they do not contribute to the fragmentation of the heap, which can be a concern in long-running programs that allocate and deallocate memory frequently. 
+Second, anonymous memory mappings are resizable, have adjustable permissions, and can receive advice just like normal mappings.
+
+Third, each allocation exists in a separate memory mapping, so there is no need to manage the global heap.
+
+To create an anonymous memory mapping, the mmap() function	 is called with the MAP_ANONYMOUS and MAP_PRIVATE flags set.
+
+Creating Anonymous Memory Mappings:-
+
+#include <sys/mman.h>
+
+       void *mmap(void *addr, size_t length, int prot, int flags,
+                  int fd, off_t offset);
+       int munmap(void *addr, size_t length);
+	
+
+
+Creating an anonymous memory mapping is actually easier than creating a file-backed
+mapping, as there is no file to open and manage. The primary difference is the presence
+of a special flag, signifying that the mapping is anonymous.
+
+eg:-
+	void *p;
+	p = mmap (NULL,                   	/* do not care where */
+		  512 * 1024,             	/* 512 KB */
+		  PROT_READ | PROT_WRITE, 	/* read/write */
+		  MAP_ANONYMOUS | MAP_PRIVATE,  /* anonymous, private */
+		  −1, 				/* fd (ignored) */
+		  0); 				/* offset (ignored) */
+		
+		  if (p == MAP_FAILED)
+		  perror ("mmap");
+else
+/* 'p' points at 512 KB of anonymous memory... */
+
+The first parameter, start, is set to NULL, signifying that the anonymous mapping
+may begin anywhere in memory that the kernel wishes. Specifying a non-NULL value
+here is possible, so long as it is page-aligned, but limits portability. Rarely does a
+program care where mappings exist in memory.
+
+second parameter is size usually greater than 128kb
+
+third parameter is The prot parameter usually sets both the PROT_READ and PROT_WRITE bits, making
+the mapping readable and writable. An empty mapping is of no use if you cannot
+read from and write to it. On the other hand, executing code from an anonymous
+mapping is rarely desired, and allowing execution opens up an attack vector.
+
+4th parameter is The flags parameter sets the MAP_ANONYMOUS bit, making this mapping anony‐
+mous, and the MAP_PRIVATE bit, making this mapping private.
+
+5th and 6th paramter is The fd and offset parameters are ignored when MAP_ANONYMOUS is set. Some older
+systems, however, expect a value of −1 for fd, so it is a good idea to pass that if
+portability is a concern.
+
+One benefit to allocating from anonymous mappings is that the pages are
+already filled with zeros. This occurs at no cost, because the kernel maps the application’s
+anonymous pages to a zero-filled page via copy-on-write
+
+Advanced Memory Allocation:-
+
+
+
+
+
+
+
